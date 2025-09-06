@@ -1,0 +1,53 @@
+# --- Secrets & local config ---
+.env
+.env.*
+config.php
+includes/db.php
+db.php
+*.local.php
+*secrets*.php
+
+# --- Credentials / keys / dumps ---
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.der
+*.jks
+*.keystore
+*.sql
+*.sqlite
+*.sqlite3
+
+# --- Logs, cache, temp ---
+*.log
+logs/
+storage/logs/
+storage/framework/
+cache/
+tmp/
+sessions/
+session/
+
+# --- User uploads / generated media ---
+uploads/
+public/uploads/
+user_uploads/
+
+# --- Dependencies (generated locally) ---
+vendor/
+node_modules/
+
+# --- Build artifacts ---
+dist/
+build/
+.bundle/
+
+# --- OS / IDE files ---
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.code-workspace
