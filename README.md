@@ -75,4 +75,4 @@ cd pixel-front
 
 ## 📜 License
 
-Attribution-NonCommercial-ShareAlike 4.0 International © 2025 *(Your Name)*. See [LICENSE](LICENSE) for details.
+Attribution-NonCommercial-ShareAlike 4.0 International © 2025 *(Moonnooo)*. See [LICENSE](LICENSE) for details.
