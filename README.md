@@ -35,8 +35,8 @@ A web‑based RTS territory-control prototype inspired by **OpenFront.io**. Play
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/pixel-front.git
-cd pixel-front
+git clone https://github.com/Moonnooo/IronFront
+cd ironfront
 ```
 
 2. Open `index.html` in a modern web browser.
