@@ -176,7 +176,7 @@ We welcome PRs! Here’s the workflow:
 
 ## 📜 License
 
-MIT © 2025 Moonnooo. See [LICENSE](LICENSE) for details.
+Attribution-NonCommercial-ShareAlike 4.0 International © 2025 Moonnooo. See [LICENSE](LICENSE) for details.
 
 > Note: Some third‑party libraries/assets may have their own licenses.
 
