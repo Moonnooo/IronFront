@@ -152,8 +152,9 @@ class TerritoryGame {
     }
     
     generateWater() {
-        // Generate oceans around edges - ensure continuous edges with no gaps
-        const oceanDepth = 3; // Tiles from edge
+        // Generate oceans around edges (1-tile border).
+        // This keeps a clear coastline: land at distToEdge==1 is always buildable and adjacent to ocean.
+        const oceanDepth = 1; // Tiles from edge
         
         // First pass: Create ocean border (all edge tiles must be ocean)
         for (let y = 0; y < this.gridSize; y++) {
@@ -164,13 +165,7 @@ class TerritoryGame {
                 if (distToEdge === 0) {
                     this.waterGrid[y][x] = -1; // Ocean
                 }
-                // Tiles 1-2 from edge are mostly ocean
-                else if (distToEdge < oceanDepth) {
-                    // 85% chance to be ocean near edges
-                    if (Math.random() < 0.85 || distToEdge <= 1) {
-                        this.waterGrid[y][x] = -1; // Ocean
-                    }
-                }
+                // Optional: deeper ocean could be added here, but keep it deterministic for ports/trade.
             }
         }
         
@@ -927,6 +922,8 @@ class TerritoryGame {
 
     isWaterConnectedToOcean(startX, startY, minVisited = 0) {
         // Flood fill on water tiles; succeed if we hit ocean and the water body isn't tiny.
+        // Special case: directly adjacent to ocean should always be valid for ports.
+        if (this.waterGrid?.[startY]?.[startX] === -1) return true;
         const visited = new Set();
         const queue = [[startX, startY]];
         const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
