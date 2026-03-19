@@ -1,4 +1,8 @@
-# Territory Conquest - Pixel Game
+# IronFront (Territory Conquest) - Pixel Game
+
+## Project status
+
+This project is **early and currently not working well**. Expect bugs, performance issues, and occasional crashes while it’s being stabilized.
 
 A pixel-based territory conquest game where you click to take over territory!
 

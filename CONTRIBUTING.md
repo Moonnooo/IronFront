@@ -1,6 +1,6 @@
-# Contributing to Virtual World / Territory Conquest
+# Contributing to IronFront / Territory Conquest
 
-> **For repo maintainers:** Replace `ORIGINAL_OWNER` in this file and in issue/PR links with your GitHub username or organization (e.g. `https://github.com/yourname/SL`).
+> **For repo maintainers:** Replace `ORIGINAL_OWNER` in this file and in issue/PR links with your GitHub username or organization (e.g. `https://github.com/yourname/IronFront`).
 
 Thank you for your interest in contributing! This document explains how to get set up and submit changes so maintainers can review and merge your updates.
 
@@ -24,12 +24,12 @@ Thank you for your interest in contributing! This document explains how to get s
 1. **Fork the repository** on GitHub (click "Fork" at the top right).
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/SL.git
-   cd SL
+   git clone https://github.com/YOUR_USERNAME/IronFront.git
+   cd IronFront
    ```
 3. **Add the upstream repo** (optional, for syncing with the original):
    ```bash
-   git remote add upstream https://github.com/ORIGINAL_OWNER/SL.git
+   git remote add upstream https://github.com/ORIGINAL_OWNER/IronFront.git
    ```
 
 ## Development Setup
@@ -48,7 +48,7 @@ See [RUN_INSTRUCTIONS.md](RUN_INSTRUCTIONS.md) for more detailed run instruction
 
 ## How to Contribute
 
-- **Bug fixes**: Fix issues reported in the [Issues](https://github.com/ORIGINAL_OWNER/SL/issues) tab.
+- **Bug fixes**: Fix issues reported in the [Issues](https://github.com/ORIGINAL_OWNER/IronFront/issues) tab.
 - **New features**: Open an issue first to discuss the idea, then implement and open a PR.
 - **Documentation**: Improve README, comments, or add guides.
 - **Polish**: UI/UX improvements, performance, or code quality.
@@ -91,7 +91,7 @@ See [RUN_INSTRUCTIONS.md](RUN_INSTRUCTIONS.md) for more detailed run instruction
 
 ## Reporting Bugs
 
-Open an [Issue](https://github.com/ORIGINAL_OWNER/SL/issues) and include:
+Open an [Issue](https://github.com/ORIGINAL_OWNER/IronFront/issues) and include:
 
 - **What happened** (e.g. game crashed when clicking Play Again).
 - **What you expected** (e.g. game should restart).
@@ -100,7 +100,7 @@ Open an [Issue](https://github.com/ORIGINAL_OWNER/SL/issues) and include:
 
 ## Suggesting Features
 
-Open an [Issue](https://github.com/ORIGINAL_OWNER/SL/issues) with the "Feature request" or similar label (if available), and describe:
+Open an [Issue](https://github.com/ORIGINAL_OWNER/IronFront/issues) with the "Feature request" or similar label (if available), and describe:
 
 - The feature and why it would be useful.
 - How it might work (optional).

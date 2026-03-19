@@ -1,4 +1,4 @@
-# How to Run Virtual World - Command Prompt Guide
+# How to Run IronFront - Command Prompt Guide
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ node --version
 
 Type this command (replace with your actual path):
 ```
-cd C:\Users\xxred\Desktop\SL
+cd C:\Users\xxred\Desktop\IronFront
 ```
 
 Press Enter.
@@ -49,7 +49,7 @@ Once installation is complete, type:
 npm start
 ```
 
-Press Enter. The Virtual World application window should open!
+Press Enter. The IronFront application window should open!
 
 ## Troubleshooting
 
@@ -70,7 +70,7 @@ Press Enter. The Virtual World application window should open!
 
 ```bash
 # Navigate to project folder
-cd C:\Users\xxred\Desktop\SL
+cd C:\Users\xxred\Desktop\IronFront
 
 # Install dependencies (first time only)
 npm install

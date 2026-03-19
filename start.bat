@@ -1,5 +1,5 @@
 @echo off
-echo Starting Virtual World...
+echo Starting IronFront...
 echo.
 echo If you encounter GPU errors, try running: npm start -- --disable-gpu
 echo.

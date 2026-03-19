@@ -1,7 +1,7 @@
 {
-  "name": "virtual-world",
+  "name": "ironfront",
   "version": "1.0.0",
-  "description": "A pixel-based territory conquest game",
+  "description": "IronFront - territory conquest (early / unstable)",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -9,8 +9,8 @@
     "start:no-gpu": "electron .",
     "build": "electron-builder"
   },
-  "keywords": ["virtual-world", "3d", "game"],
-  "author": "",
+  "keywords": ["ironfront", "territory", "pixel", "game", "electron"],
+  "author": "Moonnooo",
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "electron": "^27.0.0",
@@ -20,8 +20,8 @@
     "three": "^0.158.0"
   },
   "build": {
-    "appId": "com.virtualworld.app",
-    "productName": "Virtual World",
+    "appId": "com.moonnooo.ironfront",
+    "productName": "IronFront",
     "directories": {
       "output": "dist"
     },
