@@ -80,6 +80,8 @@ class TerritoryGame {
         // Trade (ports spawn bolts that travel on water to other ports)
         this.tradeBolts = []; // {ownerId, from:{x,y}, to:{x,y}, path:[[x,y],...], step, progress}
         this.tradeIncomePerTrip = 10;
+        this.tradeBoltMaxActive = 25;
+        this.tradePopups = []; // {x, y, text, life}
         
         // Train system
         this.trainLines = []; // Array of {factoryX, factoryY, targetX, targetY, path: [[x,y],...]}
@@ -192,6 +194,16 @@ class TerritoryGame {
 
         // Make rivers boat-friendly: avoid diagonal-only connections and add width.
         this.thickenRivers();
+
+        // Rivers are water-only (not claimable). Ensure no ownership/troops exist on river tiles.
+        for (let y = 0; y < this.gridSize; y++) {
+            for (let x = 0; x < this.gridSize; x++) {
+                if (this.waterGrid[y][x] === -2) {
+                    this.grid[y][x] = 0;
+                    this.troops[y][x] = 0;
+                }
+            }
+        }
     }
     
     fillOceanGaps() {
@@ -1169,30 +1181,30 @@ class TerritoryGame {
         setInterval(() => {
             const ports = this.buildings.filter(b => b.type === 'port' && this.grid[b.y]?.[b.x] > 0);
             if (ports.length < 2) return;
+            if (this.tradeBolts.length >= this.tradeBoltMaxActive) return;
 
-            for (let attempt = 0; attempt < 4; attempt++) {
-                const from = ports[Math.floor(Math.random() * ports.length)];
-                const to = ports[Math.floor(Math.random() * ports.length)];
-                if (!from || !to) continue;
-                if (from.x === to.x && from.y === to.y) continue;
+            // Spawn fewer boats: readable, not spammy.
+            const from = ports[Math.floor(Math.random() * ports.length)];
+            const to = ports[Math.floor(Math.random() * ports.length)];
+            if (!from || !to) return;
+            if (from.x === to.x && from.y === to.y) return;
 
-                const ownerId = this.grid[from.y][from.x];
-                const targetOwnerId = this.grid[to.y][to.x];
-                if (ownerId <= 0 || targetOwnerId <= 0) continue;
+            const ownerId = this.grid[from.y][from.x];
+            const targetOwnerId = this.grid[to.y][to.x];
+            if (ownerId <= 0 || targetOwnerId <= 0) return;
 
-                const path = this.findWaterPathBetweenPorts(from.x, from.y, to.x, to.y);
-                if (!path || path.length < 2) continue;
+            const path = this.findWaterPathBetweenPorts(from.x, from.y, to.x, to.y);
+            if (!path || path.length < 2) return;
 
-                this.tradeBolts.push({
-                    ownerId,
-                    from: { x: from.x, y: from.y },
-                    to: { x: to.x, y: to.y },
-                    path,
-                    step: 0,
-                    progress: 0
-                });
-            }
-        }, 1200);
+            this.tradeBolts.push({
+                ownerId,
+                from: { x: from.x, y: from.y },
+                to: { x: to.x, y: to.y },
+                path,
+                step: 0,
+                progress: 0
+            });
+        }, 3000);
     }
 
     isWaterTile(x, y) {
@@ -1810,12 +1822,13 @@ class TerritoryGame {
                 const py = building.y * this.tileSize;
                 
                 // Draw building icon
-                let color = '#ffff00';
-                if (building.owner >= 2) color = this.botColors[building.owner - 2]?.color || '#ffff00';
-                this.ctx.fillStyle = color;
-                // Add a dark outline so buildings are visible on same-color territory.
-                this.ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-                this.ctx.lineWidth = 1;
+                // High-contrast: white fill + owner-colored outline (so AI buildings are visible).
+                const outline = (building.owner >= 2)
+                    ? (this.botColors[building.owner - 2]?.color || '#ffff00')
+                    : '#00ff88';
+                this.ctx.fillStyle = '#f8fafc';
+                this.ctx.strokeStyle = outline;
+                this.ctx.lineWidth = 2;
                 if (building.type === 'city') {
                     // City - square icon
                     this.ctx.fillRect(px + 2, py + 2, this.tileSize - 4, this.tileSize - 4);
@@ -1848,6 +1861,25 @@ class TerritoryGame {
                 }
             }
         });
+
+        // Draw trade income popups
+        if (this.tradePopups && this.tradePopups.length) {
+            this.ctx.font = 'bold 10px Courier New, monospace';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            for (let i = this.tradePopups.length - 1; i >= 0; i--) {
+                const p = this.tradePopups[i];
+                p.life -= 1;
+                p.y -= 0.15; // float upward
+                const alpha = Math.max(0, Math.min(1, p.life / 90));
+                this.ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
+                this.ctx.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
+                this.ctx.lineWidth = 3;
+                this.ctx.strokeText(p.text, p.x, p.y);
+                this.ctx.fillText(p.text, p.x, p.y);
+                if (p.life <= 0) this.tradePopups.splice(i, 1);
+            }
+        }
 
         // Draw trade bolts on water paths
         if (this.tradeBolts && this.tradeBolts.length) {
@@ -2191,6 +2223,17 @@ class TerritoryGame {
                     if (receiverOwnerId && receiverOwnerId > 0) {
                         this.addGoldForOwner(receiverOwnerId, this.tradeIncomePerTrip);
                     }
+
+                    // Income popup at destination
+                    const popX = bolt.to.x * this.tileSize + this.tileSize / 2;
+                    const popY = bolt.to.y * this.tileSize + this.tileSize / 2;
+                    this.tradePopups.push({
+                        x: popX,
+                        y: popY,
+                        text: `+${this.tradeIncomePerTrip}g`,
+                        life: 90
+                    });
+
                     this.tradeBolts.splice(i, 1);
                     break;
                 }
