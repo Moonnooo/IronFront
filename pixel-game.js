@@ -185,6 +185,9 @@ class TerritoryGame {
         
         // Ensure all rivers connect to ocean (fill diagonal gaps)
         this.connectRiversToOcean();
+
+        // Make rivers boat-friendly: avoid diagonal-only connections and add width.
+        this.thickenRivers();
     }
     
     fillOceanGaps() {
@@ -324,11 +327,7 @@ class TerritoryGame {
     }
     
     connectRiversToOcean() {
-        // Ensure all river tiles connect to ocean (fill diagonal gaps)
-        const directions = [
-            [0, -1], [0, 1], [-1, 0], [1, 0],
-            [-1, -1], [-1, 1], [1, -1], [1, 1] // Include diagonals
-        ];
+        // Ensure all river tiles connect to ocean (4-direction connectivity).
         
         // Find all river tiles
         const riverTiles = [];
@@ -371,8 +370,7 @@ class TerritoryGame {
         // Create connecting path
         const [ox, oy] = nearestOcean;
         const directions = [
-            [0, -1], [0, 1], [-1, 0], [1, 0],
-            [-1, -1], [-1, 1], [1, -1], [1, 1]
+            [0, -1], [0, 1], [-1, 0], [1, 0]
         ];
         
         // Simple path - move towards ocean
@@ -418,6 +416,55 @@ class TerritoryGame {
             }
             
             if (visited.size > 50) break; // Limit iterations
+        }
+    }
+
+    thickenRivers() {
+        // Ensure rivers are boat-navigable on a 4-direction grid:
+        // - No diagonal-only connections
+        // - Add width along segments and at turns
+        const riverTiles = [];
+        for (let y = 0; y < this.gridSize; y++) {
+            for (let x = 0; x < this.gridSize; x++) {
+                if (this.waterGrid[y][x] === -2) riverTiles.push([x, y]);
+            }
+        }
+
+        const isOcean = (x, y) => this.waterGrid?.[y]?.[x] === -1;
+        const isRiver = (x, y) => this.waterGrid?.[y]?.[x] === -2;
+
+        const carveRiver = (x, y) => {
+            if (x < 0 || y < 0 || x >= this.gridSize || y >= this.gridSize) return;
+            if (isOcean(x, y)) return;
+            this.waterGrid[y][x] = -2;
+        };
+
+        for (const [x, y] of riverTiles) {
+            const up = isRiver(x, y - 1);
+            const down = isRiver(x, y + 1);
+            const left = isRiver(x - 1, y);
+            const right = isRiver(x + 1, y);
+
+            const hasVertical = up || down;
+            const hasHorizontal = left || right;
+
+            if (hasVertical && hasHorizontal) {
+                // Turn/intersection: fill a 2x2 around the corner area
+                carveRiver(x + 1, y);
+                carveRiver(x, y + 1);
+                carveRiver(x + 1, y + 1);
+                carveRiver(x - 1, y);
+                carveRiver(x, y - 1);
+                carveRiver(x - 1, y - 1);
+            } else if (hasVertical) {
+                // Vertical segment: widen left/right
+                carveRiver(x - 1, y);
+                carveRiver(x + 1, y);
+            } else if (hasHorizontal) {
+                // Horizontal segment: widen up/down
+                carveRiver(x, y - 1);
+                carveRiver(x, y + 1);
+            }
         }
     }
     
@@ -926,12 +973,11 @@ class TerritoryGame {
     }
     
     isRiverConnectedToOcean(x, y) {
-        // Use flood fill to check if river connects to ocean (including diagonals)
+        // Use flood fill to check if river connects to ocean (4-direction).
         const visited = new Set();
         const queue = [[x, y]];
         const directions = [
-            [0, -1], [0, 1], [-1, 0], [1, 0],
-            [-1, -1], [-1, 1], [1, -1], [1, 1] // Include diagonals
+            [0, -1], [0, 1], [-1, 0], [1, 0]
         ];
         
         while (queue.length > 0) {
