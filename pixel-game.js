@@ -677,7 +677,7 @@ class TerritoryGame {
                 
                 if (nx < 0 || nx >= this.gridSize || ny < 0 || ny >= this.gridSize) continue;
                 if (visited.has(neighborKey)) continue;
-                if (this.waterGrid[ny][nx] === -1) continue; // Skip ocean
+                if (this.waterGrid[ny][nx] === -1 || this.waterGrid[ny][nx] === -2) continue; // Skip water
                 
                 visited.add(neighborKey);
                 const neighborType = this.grid[ny][nx];
@@ -1309,8 +1309,9 @@ class TerritoryGame {
     }
     
     canAttackTile(x, y, attackerId) {
-        // Cannot attack ocean tiles
-        if (this.waterGrid && this.waterGrid[y] && this.waterGrid[y][x] === -1) return false;
+        // Cannot attack ocean or river tiles (water is not claimable)
+        const w = this.waterGrid?.[y]?.[x];
+        if (w === -1 || w === -2) return false;
         
         // Check if tile can be attacked (must be adjacent to attacker's territory)
         return this.isAdjacentToOwned(x, y, attackerId);
@@ -1326,8 +1327,8 @@ class TerritoryGame {
     }
     
     attackTile(x, y, attackerId, attackTroops = null) {
-        // Cannot capture ocean tiles
-        if (this.waterGrid[y][x] === -1) return false;
+        // Cannot capture water tiles (ocean or river)
+        if (this.waterGrid[y][x] === -1 || this.waterGrid[y][x] === -2) return false;
         
         const defenderId = this.grid[y][x];
         if (defenderId === attackerId) return false; // Already owned by attacker
@@ -1812,9 +1813,13 @@ class TerritoryGame {
                 let color = '#ffff00';
                 if (building.owner >= 2) color = this.botColors[building.owner - 2]?.color || '#ffff00';
                 this.ctx.fillStyle = color;
+                // Add a dark outline so buildings are visible on same-color territory.
+                this.ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+                this.ctx.lineWidth = 1;
                 if (building.type === 'city') {
                     // City - square icon
                     this.ctx.fillRect(px + 2, py + 2, this.tileSize - 4, this.tileSize - 4);
+                    this.ctx.strokeRect(px + 2, py + 2, this.tileSize - 4, this.tileSize - 4);
                 } else if (building.type === 'defense') {
                     // Defense - triangle
                     this.ctx.beginPath();
@@ -1823,11 +1828,13 @@ class TerritoryGame {
                     this.ctx.lineTo(px + this.tileSize - 2, py + this.tileSize - 2);
                     this.ctx.closePath();
                     this.ctx.fill();
+                    this.ctx.stroke();
                 } else if (building.type === 'port') {
                     // Port - circle
                     this.ctx.beginPath();
                     this.ctx.arc(px + this.tileSize / 2, py + this.tileSize / 2, (this.tileSize - 4) / 2, 0, Math.PI * 2);
                     this.ctx.fill();
+                    this.ctx.stroke();
                 } else if (building.type === 'factory') {
                     // Factory - diamond shape
                     this.ctx.beginPath();
@@ -1837,6 +1844,7 @@ class TerritoryGame {
                     this.ctx.lineTo(px + 2, py + this.tileSize / 2);
                     this.ctx.closePath();
                     this.ctx.fill();
+                    this.ctx.stroke();
                 }
             }
         });
