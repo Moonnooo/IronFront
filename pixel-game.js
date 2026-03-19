@@ -938,6 +938,17 @@ class TerritoryGame {
             // End behavior: stop at last building then despawn
             if (train.progress >= 1.0) {
                 this.gold += this.trainIncomePerTrip;
+
+                // Income popup at destination (rise and fade)
+                const popX = line.targetX * this.tileSize + this.tileSize / 2;
+                const popY = line.targetY * this.tileSize + this.tileSize / 2;
+                this.tradePopups.push({
+                    x: popX,
+                    y: popY,
+                    text: `+${this.trainIncomePerTrip}g`,
+                    life: 90
+                });
+
                 this.trains.splice(i, 1);
             }
         }
