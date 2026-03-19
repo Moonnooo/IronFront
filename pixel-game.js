@@ -177,17 +177,10 @@ class TerritoryGame {
         // Fill in any gaps in the ocean border using flood fill
         this.fillOceanGaps();
         
-        // Also create some inland lakes/water bodies
-        for (let y = 0; y < this.gridSize; y++) {
-            for (let x = 0; x < this.gridSize; x++) {
-                const distToEdge = Math.min(x, y, this.gridSize - 1 - x, this.gridSize - 1 - y);
-                if (distToEdge >= oceanDepth && Math.random() < 0.03) {
-                    this.waterGrid[y][x] = -1; // Small inland water
-                }
-            }
-        }
+        // Avoid random single-tile inland water "puddles" (they break port/trade routing).
+        // If you want lakes later, generate them as connected blobs instead.
         
-        // Generate rivers connecting to oceans
+        // Generate rivers connecting ocean-to-ocean
         this.generateRivers();
         
         // Ensure all rivers connect to ocean (fill diagonal gaps)
@@ -229,48 +222,33 @@ class TerritoryGame {
     }
     
     generateRivers() {
-        // Find ocean tiles (prioritize edge ocean tiles)
-        const edgeOceanTiles = [];
-        const innerOceanTiles = [];
-        
-        for (let y = 0; y < this.gridSize; y++) {
-            for (let x = 0; x < this.gridSize; x++) {
-                if (this.waterGrid[y][x] === -1) {
-                    const distToEdge = Math.min(x, y, this.gridSize - 1 - x, this.gridSize - 1 - y);
-                    if (distToEdge <= 2) {
-                        edgeOceanTiles.push([x, y]);
-                    } else {
-                        innerOceanTiles.push([x, y]);
-                    }
-                }
-            }
-        }
-        
-        const oceanTiles = edgeOceanTiles.length > 0 ? edgeOceanTiles : innerOceanTiles;
-        
-        // Create 3-5 rivers that flow inland
-        const numRivers = 3 + Math.floor(Math.random() * 3);
+        // Create a few long rivers that connect one ocean edge to another ocean edge.
+        const numRivers = 2 + Math.floor(Math.random() * 2); // 2-3 main rivers
         for (let i = 0; i < numRivers; i++) {
-            if (oceanTiles.length === 0) break;
-            
-            // Pick a random ocean tile as river source
-            const sourceIndex = Math.floor(Math.random() * oceanTiles.length);
-            let [sx, sy] = oceanTiles[sourceIndex];
-            
-            // River flows inward
-            const targetX = Math.floor(this.gridSize / 2) + (Math.random() - 0.5) * 20;
-            const targetY = Math.floor(this.gridSize / 2) + (Math.random() - 0.5) * 20;
-            
-            // Create river path using pathfinding that ensures connection
-            this.createRiverPath(sx, sy, targetX, targetY);
+            const a = this.pickRandomOceanEdgePoint();
+            const b = this.pickRandomOceanEdgePoint(a.side);
+            if (!a || !b) continue;
+            this.createRiverPath(a.x, a.y, b.x, b.y, { allowOceanTarget: true });
         }
     }
     
-    createRiverPath(startX, startY, targetX, targetY) {
+    pickRandomOceanEdgePoint(excludeSide = null) {
+        const sides = ['top', 'bottom', 'left', 'right'].filter(s => s !== excludeSide);
+        if (sides.length === 0) return null;
+        const side = sides[Math.floor(Math.random() * sides.length)];
+        const max = this.gridSize - 1;
+
+        // Pick an actual ocean tile on that edge (edge is always ocean by generation).
+        if (side === 'top') return { x: Math.floor(Math.random() * this.gridSize), y: 0, side };
+        if (side === 'bottom') return { x: Math.floor(Math.random() * this.gridSize), y: max, side };
+        if (side === 'left') return { x: 0, y: Math.floor(Math.random() * this.gridSize), side };
+        return { x: max, y: Math.floor(Math.random() * this.gridSize), side };
+    }
+
+    createRiverPath(startX, startY, targetX, targetY, opts = {}) {
         // Use A* pathfinding to create connected river path
         const directions = [
-            [0, -1], [0, 1], [-1, 0], [1, 0],
-            [-1, -1], [-1, 1], [1, -1], [1, 1] // Include diagonals
+            [0, -1], [0, 1], [-1, 0], [1, 0]
         ];
         
         const openSet = [{x: startX, y: startY, g: 0, h: 0, parent: null}];
@@ -290,7 +268,7 @@ class TerritoryGame {
             closedSet.add(currentKey);
             
             // Check if reached target
-            if (Math.abs(current.x - targetX) <= 2 && Math.abs(current.y - targetY) <= 2) {
+            if (current.x === targetX && current.y === targetY) {
                 targetReached = true;
                 finalNode = current;
                 break;
@@ -305,8 +283,11 @@ class TerritoryGame {
                 if (nx < 0 || nx >= this.gridSize || ny < 0 || ny >= this.gridSize) continue;
                 if (closedSet.has(neighborKey)) continue;
                 
-                // Can't build river on ocean, but can on land
-                if (this.waterGrid[ny][nx] === -1) continue; // Skip ocean
+                // River can carve through land/river, and may end on ocean (target).
+                if (!opts.allowOceanTarget && this.waterGrid[ny][nx] === -1) continue;
+                if (opts.allowOceanTarget && this.waterGrid[ny][nx] === -1 && !(nx === targetX && ny === targetY)) {
+                    continue;
+                }
                 
                 const g = current.g + (dx !== 0 && dy !== 0 ? 1.414 : 1); // Diagonal costs more
                 const h = heuristic(nx, ny, targetX, targetY);
@@ -322,7 +303,7 @@ class TerritoryGame {
                 }
             }
             
-            if (closedSet.size > 300) break; // Limit pathfinding
+            if (closedSet.size > 2000) break; // Limit pathfinding for long rivers
         }
         
         // Reconstruct path and mark as river
@@ -334,11 +315,10 @@ class TerritoryGame {
                 node = node.parent;
             }
             
-            // Mark path as river (except ocean tiles)
+            // Mark path as river (keep the ocean endpoints as ocean).
             for (let [px, py] of path) {
-                if (this.waterGrid[py][px] !== -1) {
-                    this.waterGrid[py][px] = -2; // River
-                }
+                if (this.waterGrid[py][px] === -1) continue;
+                this.waterGrid[py][px] = -2; // River
             }
         }
     }
@@ -884,12 +864,46 @@ class TerritoryGame {
     }
     
     canBuildPort(x, y) {
-        // New rule: Ports can ONLY be built on the edge of the map on LAND,
-        // and must be adjacent (4-direction) to water (ocean or river).
+        // Ports must be placed on LAND that is adjacent (4-direction) to CONNECTED water.
+        // This avoids ports next to isolated puddles and ensures trade routes exist.
         if (this.waterGrid[y][x] !== 0) return false; // must be land
-        const isEdge = (x === 0 || y === 0 || x === this.gridSize - 1 || y === this.gridSize - 1);
-        if (!isEdge) return false;
-        return this.getWaterNeighbors(x, y).length > 0;
+
+        const waterNeighbors = this.getWaterNeighbors(x, y);
+        if (waterNeighbors.length === 0) return false;
+
+        // Require that at least one adjacent water neighbor can reach the ocean through connected water.
+        for (const [wx, wy] of waterNeighbors) {
+            if (this.isWaterConnectedToOcean(wx, wy, 50)) return true;
+        }
+        return false;
+    }
+
+    isWaterConnectedToOcean(startX, startY, minVisited = 0) {
+        // Flood fill on water tiles; succeed if we hit ocean and the water body isn't tiny.
+        const visited = new Set();
+        const queue = [[startX, startY]];
+        const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+        while (queue.length) {
+            const [cx, cy] = queue.shift();
+            const k = `${cx},${cy}`;
+            if (visited.has(k)) continue;
+            visited.add(k);
+
+            const t = this.waterGrid?.[cy]?.[cx];
+            if (t === -1) {
+                return visited.size >= minVisited;
+            }
+            if (t !== -1 && t !== -2) continue;
+
+            for (const [dx, dy] of dirs) {
+                const nx = cx + dx, ny = cy + dy;
+                if (nx < 0 || ny < 0 || nx >= this.gridSize || ny >= this.gridSize) continue;
+                const nt = this.waterGrid?.[ny]?.[nx];
+                if (nt === -1 || nt === -2) queue.push([nx, ny]);
+            }
+        }
+        return false;
     }
     
     isCoastline(x, y) {
