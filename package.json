@@ -1,0 +1,38 @@
+{
+  "name": "virtual-world",
+  "version": "1.0.0",
+  "description": "A pixel-based territory conquest game",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:gpu": "electron main-gpu-enabled.js",
+    "start:no-gpu": "electron .",
+    "build": "electron-builder"
+  },
+  "keywords": ["virtual-world", "3d", "game"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "dependencies": {
+    "three": "^0.158.0"
+  },
+  "build": {
+    "appId": "com.virtualworld.app",
+    "productName": "Virtual World",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
+  }
+}
+

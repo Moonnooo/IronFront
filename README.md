@@ -1,78 +1,74 @@
+# Territory Conquest - Pixel Game
 
-# Iron Front
+A pixel-based territory conquest game where you click to take over territory!
 
-A web‑based RTS territory-control prototype inspired by **OpenFront.io**. Players push a shifting **front line**, manage armies, and expand into AI-controlled territory using terrain and economic strategy. Built with **vanilla JS + HTML5 Canvas + CSS**.
+## Gameplay
 
-> Live demo: *(Not available yet)*
-> Contribute on GitHub: *(https://github.com/Moonnooo/IronFront)*
+- **Left Click**: Click on gray (neutral) tiles to capture territory
+- **Right Click**: Expand your territory in a radius from owned tiles
+- **Goal**: Capture all tiles to win!
 
-## ✨ Features
+## Features
 
-* **Territory control & combat math** — click to expand or attack; combat resolves using army sizes and terrain bonuses instead of instant tile flips.
-* **Terrain mechanics** — plains, forests, and mountains affect movement cost and defense. Mountains are strong defensive chokepoints; plains are easy to expand into.
-* **Armies per tile** — each tile has an army size. Only part of the army moves when expanding or attacking.
-* **Economic system** — balance/interest limits rapid expansion. Actions consume balance; regenerate over time.
-* **AI opponent** — AI expands and attacks using the same rules, creating strategic frontlines.
-* **Clean, scalable UI** — army numbers, balance bar, and tile colors indicate ownership and resources clearly.
-* **Expandable map** — supports larger grids (64×64) for deeper strategy.
+- Pixel art style graphics
+- Click-to-capture mechanics
+- Territory expansion system
+- Real-time progress tracking
+- Victory screen
+- Smooth animations
 
-## 🧭 How to Play
+## Installation
 
-1. Click on the canvas to push your front in the direction relative to the center.
-2. Monitor **Balance** — expansion and attacks cost balance. Wait for regeneration if depleted.
-3. Watch terrain effects — mountains slow advances, forests moderate, plains are cheap.
-4. Tile armies fight based on size and terrain; stronger tiles hold longer.
-5. Capture AI territory to dominate the map.
-
-## 🧱 Tech Stack
-
-* **Frontend:** Vanilla JavaScript, HTML5 Canvas, CSS
-* **No backend yet** — prototype runs entirely in the browser
-* **Future extension:** PHP + MySQL for persistence and multiplayer
-
-## 🚀 Quick Start (Local)
-
-1. Clone the repository:
-
+1. Install Node.js (v16 or higher)
+2. Install dependencies:
 ```bash
-git clone https://github.com/Moonnooo/IronFront
-cd ironfront
+npm install
 ```
 
-2. Open `index.html` in a modern web browser.
+## Running the Application
 
-3. Click on the canvas to expand or attack AI territory.
+```bash
+npm start
+```
 
-## 🔌 Gameplay Mechanics
+## How to Play
 
-* **Combat math** — attacks and defenses consider both army size and terrain.
-* **Partial force movement** — only a portion of armies move during an expansion or attack.
-* **Balance / interest** — resources that limit expansion; regenerates over time.
-* **AI** — pushes into territory, responds to player expansion, and defends its tiles.
-* **UI indicators** — armies displayed on tiles; balance shown with color-coded bar.
+1. **Start**: You begin with one tile owned in the center
+2. **Capture**: Click on any gray tile to capture it and its adjacent tiles
+3. **Expand**: Right-click near your territory to expand in a radius
+4. **Win**: Capture all 3,600 tiles (60x60 grid) to win!
 
-## 🧪 Dev Notes
+## Game Stats
 
-* Map grid and tile army sizes are adjustable in `index.html` for testing.
-* Terrain generation is randomized but can be fixed for consistent gameplay.
-* Combat math is isolated in `resolveCombat()` — easy to tweak damage formulas.
-* AI is currently simple but modular, ready to be moved to a separate `ai.js`.
-* Canvas and UI elements scale cleanly; balance bar is outside the game canvas.
+The UI shows:
+- **Owned**: Number of tiles you control
+- **Total**: Total tiles on the map (3,600)
+- **Progress**: Percentage of map captured
+- **Clicks**: Total clicks you've made
 
-## 🤝 Contributing
+## Controls
 
-* Fork the repo, create a branch (`feat/my-feature` or `fix/bug`), and submit a PR.
-* Test the prototype in the browser; ensure army, terrain, balance, and AI interactions work correctly.
-* Provide screenshots or short clips for visual changes.
+- **Left Click**: Capture tile and adjacent tiles
+- **Right Click**: Expand territory from owned tiles
+- **Play Again**: Click button after victory to restart
 
-## 🗺️ Roadmap
+## Technology Stack
 
-* Tile regeneration / per-tile growth
-* Combat animations and visual feedback
-* Smarter AI with target prioritization
-* Larger maps with panning and zoom
-* Persistent accounts and leaderboards
+- **Electron**: Desktop application framework
+- **HTML5 Canvas**: Pixel rendering
+- **JavaScript**: Game logic
 
-## 📜 License
+## Contributing
 
-Attribution-NonCommercial-ShareAlike 4.0 International © 2025 *(Moonnooo)*. See [LICENSE](LICENSE) for details.
+Contributions are welcome! If you'd like to push updates, fix bugs, or add features:
+
+1. **Fork** this repository on GitHub.
+2. **Clone** your fork and create a branch: `git checkout -b your-feature-name`
+3. **Make your changes** and test with `npm start`.
+4. **Commit and push** to your fork, then open a **Pull Request** against this repo.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (code of conduct, PR process, reporting bugs, suggesting features).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
