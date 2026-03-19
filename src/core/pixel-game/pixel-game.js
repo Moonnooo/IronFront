@@ -1336,8 +1336,58 @@ class TerritoryGame {
         const w = this.waterGrid?.[y]?.[x];
         if (w === -1 || w === -2) return false;
         
-        // Check if tile can be attacked (must be adjacent to attacker's territory)
-        return this.isAdjacentToOwned(x, y, attackerId);
+        // Normal adjacency attack
+        if (this.isAdjacentToOwned(x, y, attackerId)) return true;
+
+        // Boat assault attack: cross connected water to capture a coastal land tile.
+        return this.canBoatAssaultTile(x, y, attackerId);
+    }
+
+    canBoatAssaultTile(targetX, targetY, attackerId) {
+        // Only coastal land tiles can be boat-assaulted.
+        if (this.waterGrid?.[targetY]?.[targetX] !== 0) return false;
+
+        const targetWaterNeighbors = this.getWaterNeighbors(targetX, targetY);
+        if (targetWaterNeighbors.length === 0) return false;
+
+        // BFS through water network from water adjacent to target.
+        // If we can reach any water tile adjacent to attacker's territory, boat assault is possible.
+        const queue = [...targetWaterNeighbors];
+        const visited = new Set(targetWaterNeighbors.map(([x, y]) => `${x},${y}`));
+        const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+        // Keep search bounded for performance in bot scans.
+        let expanded = 0;
+        const maxExpanded = 500;
+
+        while (queue.length > 0 && expanded < maxExpanded) {
+            const [cx, cy] = queue.shift();
+            expanded++;
+
+            // If this water tile touches attacker-owned land, we can launch boats from there.
+            for (const [dx, dy] of dirs) {
+                const lx = cx + dx;
+                const ly = cy + dy;
+                if (lx < 0 || ly < 0 || lx >= this.gridSize || ly >= this.gridSize) continue;
+                if (this.grid?.[ly]?.[lx] === attackerId && this.waterGrid?.[ly]?.[lx] === 0) {
+                    return true;
+                }
+            }
+
+            // Continue traversing water
+            for (const [dx, dy] of dirs) {
+                const nx = cx + dx;
+                const ny = cy + dy;
+                if (nx < 0 || ny < 0 || nx >= this.gridSize || ny >= this.gridSize) continue;
+                if (!this.isWaterTile(nx, ny)) continue;
+                const key = `${nx},${ny}`;
+                if (visited.has(key)) continue;
+                visited.add(key);
+                queue.push([nx, ny]);
+            }
+        }
+
+        return false;
     }
     
     getTilePopulation(x, y) {
