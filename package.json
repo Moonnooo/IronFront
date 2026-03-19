@@ -2,10 +2,10 @@
   "name": "ironfront",
   "version": "1.0.0",
   "description": "IronFront - territory conquest (early / unstable)",
-  "main": "main.js",
+  "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
-    "start:gpu": "electron main-gpu-enabled.js",
+    "start:gpu": "electron electron/main-gpu-enabled.js",
     "start:no-gpu": "electron .",
     "build": "electron-builder"
   },
@@ -26,8 +26,17 @@
       "output": "dist"
     },
     "files": [
-      "**/*",
-      "!node_modules/**/*"
+      "electron/**/*",
+      "public/**/*",
+      "src/**/*",
+      "docs/**/*",
+      "scripts/**/*",
+      "package.json",
+      "LICENSE",
+      "NOTICE",
+      "COMMERCIAL.md",
+      "SECURITY.md",
+      "TRADEMARKS.md"
     ],
     "win": {
       "target": "nsis",

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Territory Conquest - Pixel Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            background: #1a1a2e;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            color: white;
+        }
+        
+        #game-container {
+            display: flex;
+            gap: 15px;
+            padding: 10px;
+            align-items: flex-start;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+        }
+        
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            border: 3px solid #0f3460;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            max-width: calc(100vw - 290px);
+            max-height: calc(100vh - 20px);
+            width: auto;
+            height: auto;
+        }
+        
+        #ui {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #00ff00;
+            font-size: 11px;
+            width: 260px;
+            flex-shrink: 0;
+            max-height: calc(100vh - 20px);
+            overflow-y: auto;
+        }
+        
+        #ui h2 {
+            color: #00ff00;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        #ui > div {
+            margin: 4px 0;
+            padding: 3px 5px;
+            background: rgba(0, 255, 0, 0.1);
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        
+        #ui span {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        
+        #instructions {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 8px;
+            border-radius: 8px;
+            border: 2px solid #00ff00;
+            font-size: 10px;
+            width: 260px;
+            flex-shrink: 0;
+            margin-top: 8px;
+        }
+        
+        #instructions h3 {
+            color: #00ff00;
+            margin-bottom: 5px;
+            font-size: 11px;
+        }
+        
+        #instructions ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        #instructions li {
+            margin: 3px 0;
+            padding-left: 15px;
+            position: relative;
+            font-size: 9px;
+            line-height: 1.3;
+        }
+        
+        #instructions li:before {
+            content: "▶";
+            position: absolute;
+            left: 0;
+            color: #00ff88;
+        }
+        
+        button[data-building] {
+            transition: all 0.2s;
+        }
+        
+        button[data-building]:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        button[data-building].selected {
+            border: 2px solid #00ff00 !important;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
+        }
+        
+        #victory {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            border: 4px solid #00ff00;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+        }
+        
+        #victory.show {
+            display: block;
+        }
+        
+        #victory h1 {
+            color: #00ff00;
+            font-size: 36px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        #victory button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        #victory button:hover {
+            background: #00ff88;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #00ff00;
+        }
+    </style>
+</head>
+<body>
+        <div id="game-container">
+            <div style="flex: 1; min-width: 0; display: flex; justify-content: center; align-items: center;">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; flex-shrink: 0; width: 260px;">
+                <div id="ui">
+                    <h2>TERRITORY</h2>
+                    <div>Owned: <span id="owned">0</span></div>
+                    <div>Total Troops: <span id="troops">0</span></div>
+                    <div>Troops/Tile: <span id="troopsPerTile">0</span></div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #00ff00;">
+                        <strong style="font-size: 11px;">RESOURCES</strong>
+                        <div style="margin-top: 3px; font-size: 10px;">Gold: <span id="gold">100</span> (+<span id="goldPerSec">0</span>/s)</div>
+                        <div style="font-size: 10px;">Pop: <span id="population">100</span>/<span id="maxPopulation">1000</span></div>
+                    </div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #00ff00;">
+                        <strong style="font-size: 11px;">ATTACK</strong>
+                        <div style="margin-top: 5px;">
+                            <div style="font-size: 9px;">Troops: <span id="selectedTroops">100</span> / <span id="maxAttackTroops">0</span></div>
+                            <input type="range" id="troopSelector" min="0" max="1000" value="100" 
+                                style="width: 100%; margin: 3px 0; height: 4px;">
+                            <div style="font-size: 9px;">Attack %: <span id="attackPercentageValue">50%</span> → <span id="actualAttackTroops">50</span> troops</div>
+                            <input type="range" id="attackPercentage" min="1" max="100" value="50" 
+                                style="width: 100%; margin: 3px 0; height: 4px;">
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #00ff00;">
+                        <strong style="font-size: 11px;">DEFENSE</strong>
+                        <div style="font-size: 10px; margin-top: 3px;">Defense: <span id="defenseTroops">0</span> | <span id="defenseStrength" style="font-size: 9px;">Balanced</span></div>
+                        <div style="font-size: 9px; margin-top: 2px;">Rate: <span id="captureRate">1</span> tiles/click</div>
+                    </div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #00ff00;">
+                        <strong style="font-size: 11px;">BUILDINGS</strong>
+                        <div id="buildingStatus" style="font-size: 8px; color: #888; margin-top: 2px; min-height: 10px;">None selected</div>
+                        <div style="margin-top: 5px; display: grid; grid-template-columns: 1fr; gap: 3px;">
+                            <button data-building="city" style="padding: 4px 6px; background: #4CAF50; border: 1px solid #00ff00; color: white; cursor: pointer; border-radius: 3px; font-size: 9px; position: relative; z-index: 10;">
+                                City (500g) - +100pop +2g/s
+                            </button>
+                            <button data-building="defense" style="padding: 4px 6px; background: #ff9800; border: 1px solid #00ff00; color: white; cursor: pointer; border-radius: 3px; font-size: 9px; position: relative; z-index: 10;">
+                                Defense (200g) - +50% def
+                            </button>
+                            <button data-building="port" style="padding: 4px 6px; background: #2196F3; border: 1px solid #00ff00; color: white; cursor: pointer; border-radius: 3px; font-size: 9px; position: relative; z-index: 10;">
+                                Port (300g) - +1g/s
+                            </button>
+                            <button data-building="factory" style="padding: 4px 6px; background: #9c27b0; border: 1px solid #00ff00; color: white; cursor: pointer; border-radius: 3px; font-size: 9px; position: relative; z-index: 10;">
+                                Factory (400g) - Trains
+                            </button>
+                        </div>
+                        <div style="font-size: 8px; color: #888; margin-top: 3px;">Keys: 1=City 2=Def 3=Port 4=Factory | Esc=Clear</div>
+                    </div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #00ff00;">
+                        <strong style="font-size: 11px;">ENEMIES</strong>
+                        <div style="font-size: 9px; margin-top: 3px;">Red: <span id="bot0">0</span> (<span id="bot0Pct">0%</span>)</div>
+                        <div style="font-size: 9px;">Blue: <span id="bot1">0</span> (<span id="bot1Pct">0%</span>)</div>
+                        <div style="font-size: 9px;">Purple: <span id="bot2">0</span> (<span id="bot2Pct">0%</span>)</div>
+                    </div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #00ff00;">
+                        <div style="font-size: 10px;">You: <span id="playerPct">0%</span> | Total: <span id="progress">0%</span></div>
+                        <div style="font-size: 9px; margin-top: 2px;">Clicks: <span id="clicks">0</span></div>
+                        <div style="font-size: 9px; color: #ffff00; margin-top: 3px; font-weight: bold;">First to 90% wins!</div>
+                    </div>
+                </div>
+                
+                <div id="instructions">
+                    <h3>CONTROLS</h3>
+                    <ul>
+                        <li>Click anywhere adjacent: Expand/Attack</li>
+                        <li>Right-click: Expand in radius</li>
+                        <li>Attack %: Controls troops sent per attack</li>
+                        <li>Build: Select building, click own tile</li>
+                        <li>Keys: 1=City 2=Defense 3=Port</li>
+                        <li>City: +pop +gold | Defense: +defense</li>
+                        <li>Port: +gold (coast/river only)</li>
+                        <li>Factory: Creates trains to city/port</li>
+                        <li>More pop = faster troop generation</li>
+                        <li>First to 90% wins!</li>
+                    </ul>
+                </div>
+            </div>
+        
+        <div id="victory">
+            <h1>VICTORY!</h1>
+            <p>You conquered all territory!</p>
+            <p>Total Clicks: <span id="victoryClicks">0</span></p>
+            <button onclick="game.restart()">PLAY AGAIN</button>
+        </div>
+    </div>
+    
+    <script src="../src/core/pixel-game/pixel-game.js"></script>
+</body>
+</html>
+

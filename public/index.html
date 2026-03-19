@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IronFront</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+        }
+        
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            pointer-events: auto;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        #hud h3 {
+            margin-bottom: 10px;
+            color: #4CAF50;
+        }
+        
+        #hud ul {
+            list-style: none;
+            margin-left: 10px;
+        }
+        
+        #hud li {
+            margin: 5px 0;
+        }
+        
+        #info-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 200px;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+        }
+        
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+        }
+        
+        #crosshair::before {
+            width: 2px;
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        #crosshair::after {
+            width: 100%;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px 40px;
+            border-radius: 10px;
+            z-index: 1000;
+            text-align: center;
+            min-width: 300px;
+        }
+        
+        #loading.hidden {
+            display: none;
+        }
+        
+        #loading-percent {
+            font-size: 48px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin: 10px 0;
+        }
+        
+        #loading-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        #loading-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        #loading-status {
+            font-size: 16px;
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div>Loading IronFront...</div>
+        <div id="loading-percent">0%</div>
+        <div id="loading-bar">
+            <div id="loading-bar-fill"></div>
+        </div>
+        <div id="loading-status">Initializing...</div>
+    </div>
+    <div id="canvas-container"></div>
+    
+    <div id="ui-overlay">
+        <div id="hud">
+            <h3>IronFront</h3>
+            <ul>
+                <li><strong>WASD:</strong> Move</li>
+                <li><strong>Mouse:</strong> Look around</li>
+                <li><strong>Space:</strong> Jump</li>
+                <li><strong>Shift:</strong> Run</li>
+                <li><strong>R:</strong> Reset position</li>
+            </ul>
+        </div>
+        
+        <div id="crosshair"></div>
+        
+        <div id="info-panel">
+            <div><strong>Position:</strong> <span id="position">0, 0, 0</span></div>
+            <div><strong>Speed:</strong> <span id="speed">Walking</span></div>
+            <div><strong>FPS:</strong> <span id="fps">60</span></div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r158/three.min.js"></script>
+    <script src="../src/core/world3d/game.js"></script>
+</body>
+</html>
+

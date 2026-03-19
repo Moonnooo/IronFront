@@ -1,0 +1,3 @@
+This folder = GITHUB copy
+Use this one to push to GitHub and keep it in sync with the public repo.
+Run: npm start (to test before pushing)
