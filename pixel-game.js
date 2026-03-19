@@ -49,7 +49,8 @@ class TerritoryGame {
         this.attackPercentage = 50; // Percentage of troops to send (0-100)
         
         // Resources (OpenFront.io style)
-        this.gold = 100;
+        // Start with enough gold to try buildings immediately.
+        this.gold = 1000;
         this.population = 100;
         this.maxPopulation = 1000;
         this.goldPerSecond = 0;
@@ -681,23 +682,27 @@ class TerritoryGame {
     buildStructure(x, y, buildingType) {
         if (this.grid[y][x] !== 1) {
             console.log('Cannot build: Not on player territory');
+            this.updateBuildingStatus('Cannot build: place on your territory', '#ff4444');
             return false; // Must be on own territory
         }
         
         const building = this.buildingTypes[buildingType];
         if (!building) {
             console.log('Cannot build: Invalid building type');
+            this.updateBuildingStatus('Cannot build: invalid building type', '#ff4444');
             return false;
         }
         
         if (this.gold < building.cost) {
             console.log(`Cannot build: Not enough gold (need ${building.cost}, have ${Math.floor(this.gold)})`);
+            this.updateBuildingStatus(`Not enough gold (${Math.floor(this.gold)}/${building.cost}g)`, '#ff4444');
             return false; // Not enough gold
         }
         
         // Check if tile already has a building
         if (this.getBuildingAt(x, y)) {
             console.log('Cannot build: Tile already has a building');
+            this.updateBuildingStatus('Cannot build: tile already has a building', '#ff4444');
             return false;
         }
         
@@ -705,6 +710,7 @@ class TerritoryGame {
         if (buildingType === 'port') {
             if (!this.canBuildPort(x, y)) {
                 console.log('Cannot build port: Must be on coastline or river connected to ocean');
+                this.updateBuildingStatus('Port must be on coast / river-to-ocean', '#ff4444');
                 return false;
             }
         }
@@ -1043,8 +1049,9 @@ class TerritoryGame {
         let totalAttackerPower = 0;
         
         if (attackerId === 1 && attackTroops !== null) {
-            // Player using selected troops with attack percentage
-            totalAttackerPower = Math.floor(attackTroops * (this.attackPercentage / 100));
+            // Player: call sites already apply attackPercentage and split per-tile.
+            // Treat attackTroops as the actual power being sent to this tile.
+            totalAttackerPower = Math.floor(attackTroops);
         } else {
             // Bots or default: use all adjacent troops
             const directions = [
@@ -1632,13 +1639,13 @@ class TerritoryGame {
         return count;
     }
     
-    updateBuildingStatus(message = null) {
+    updateBuildingStatus(message = null, color = null) {
         const statusEl = document.getElementById('buildingStatus');
         if (!statusEl) return;
         
         if (message) {
             statusEl.textContent = message;
-            statusEl.style.color = '#00ff00';
+            statusEl.style.color = color || '#00ff00';
             // Clear message after 2 seconds
             setTimeout(() => {
                 if (statusEl.textContent === message) {
@@ -1735,7 +1742,7 @@ class TerritoryGame {
         this.ownedCount = 0;
         this.clicks = 0;
         this.buildings = [];
-        this.gold = 100;
+        this.gold = 1000;
         this.population = 100;
         this.maxPopulation = 1000;
         this.selectedBuilding = null;
