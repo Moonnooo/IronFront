@@ -1,0 +1,4 @@
+# Optional: blank config so GitHub uses the issue templates from ISSUE_TEMPLATE/
+blank_issues_enabled: true
+contact_links: []
+
