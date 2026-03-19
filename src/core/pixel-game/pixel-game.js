@@ -776,23 +776,23 @@ class TerritoryGame {
         if (buildingType === 'city') {
             if (ownerId === 1) this.maxPopulation += building.populationBonus;
         } else if (buildingType === 'factory') {
-            // When factory is built, create train line to nearest city/port
-            this.createTrainLine(x, y);
+            // When factory is built, create train line to nearest city/port (same owner)
+            this.createTrainLine(x, y, ownerId);
         }
         
         console.log(`Built ${building.name} at (${x}, ${y})`);
         return true;
     }
     
-    createTrainLine(factoryX, factoryY) {
-        // Find nearest city or port
+    createTrainLine(factoryX, factoryY, ownerId = 1) {
+        // Find nearest city or port owned by the same owner (player or bot)
         let nearestCity = null;
         let nearestPort = null;
         let minCityDist = Infinity;
         let minPortDist = Infinity;
         
         for (let building of this.buildings) {
-            if (this.grid[building.y][building.x] !== 1) continue; // Must be owned by player
+            if (this.grid[building.y][building.x] !== ownerId) continue;
             
             if (building.type === 'city') {
                 const dist = Math.abs(building.x - factoryX) + Math.abs(building.y - factoryY);
@@ -821,13 +821,14 @@ class TerritoryGame {
         
         if (!target) return; // No city or port found
         
-        // Create path from factory to target using simple pathfinding
-        const path = this.findPath(factoryX, factoryY, target.x, target.y);
+        // Create path from factory to target (same owner so pathfinding uses owner's tiles)
+        const path = this.findPath(factoryX, factoryY, target.x, target.y, ownerId);
         if (path.length > 0) {
             this.trainLines.push({
                 factoryX, factoryY,
                 targetX: target.x, targetY: target.y,
                 path: path,
+                ownerId: ownerId,
                 railTypes: path.map(([x, y]) => {
                     const w = this.waterGrid?.[y]?.[x];
                     return (w === -1 || w === -2) ? 'bridge' : 'rail';
@@ -845,8 +846,8 @@ class TerritoryGame {
         }
     }
     
-    findPath(startX, startY, endX, endY) {
-        // Simple A* pathfinding (simplified for performance)
+    findPath(startX, startY, endX, endY, ownerId = 1) {
+        // Simple A* pathfinding (ownerId: whose territory rails can use)
         const path = [];
         const openSet = [{x: startX, y: startY, g: 0, h: 0, parent: null}];
         const closedSet = new Set();
@@ -889,11 +890,10 @@ class TerritoryGame {
                 
                 if (nx < 0 || nx >= this.gridSize || ny < 0 || ny >= this.gridSize) continue;
                 
-                // Rails can cross water (bridges) but must stay within player-owned territory on land.
-                // Water crossings are allowed regardless of ownership (bridge segment).
+                // Rails can cross water (bridges). On land, must stay on owner's territory.
                 const w = this.waterGrid?.[ny]?.[nx];
                 if (w !== -1 && w !== -2) {
-                    if (this.grid[ny][nx] !== 1) continue;
+                    if (this.grid[ny][nx] !== ownerId) continue;
                 }
                 
                 const neighborKey = getKey(nx, ny);
@@ -937,7 +937,8 @@ class TerritoryGame {
 
             // End behavior: stop at last building then despawn
             if (train.progress >= 1.0) {
-                this.gold += this.trainIncomePerTrip;
+                const ownerId = line.ownerId ?? 1;
+                this.addGoldForOwner(ownerId, this.trainIncomePerTrip);
 
                 // Income popup at destination (rise and fade)
                 const popX = line.targetX * this.tileSize + this.tileSize / 2;
@@ -1710,6 +1711,10 @@ class TerritoryGame {
         let choices = ['defense', 'city', 'factory'];
         if (botPorts.length === 0) choices.unshift('port');
         if (botCities.length === 0) choices.unshift('city');
+        // Prefer factory when they have something to connect (city or port)
+        if ((botCities.length > 0 || botPorts.length > 0) && budget >= (this.buildingTypes.factory?.cost || 400)) {
+            choices.unshift('factory');
+        }
 
         choices = choices.filter(t => this.buildingTypes[t] && this.buildingTypes[t].cost <= budget);
         if (choices.length === 0) return;
