@@ -54,6 +54,10 @@ class TerritoryGame {
         this.population = 100;
         this.maxPopulation = 1000;
         this.goldPerSecond = 0;
+
+        // Bot resources
+        this.botGold = this.botColors.map(() => 1000);
+        this.botGoldPerSecond = this.botColors.map(() => 0);
         
         // Buildings
         this.buildings = []; // Store building data: {x, y, type}
@@ -64,6 +68,10 @@ class TerritoryGame {
             factory: { cost: 400, name: 'Factory' }
         };
         this.selectedBuilding = null;
+
+        // Trade (ports spawn bolts that travel on water to other ports)
+        this.tradeBolts = []; // {ownerId, from:{x,y}, to:{x,y}, path:[[x,y],...], step, progress}
+        this.tradeIncomePerTrip = 10;
         
         // Train system
         this.trainLines = []; // Array of {factoryX, factoryY, targetX, targetY, path: [[x,y],...]}
@@ -127,6 +135,7 @@ class TerritoryGame {
         this.startBotAI();
         this.startTroopGeneration();
         this.startResourceGeneration();
+        this.startTradeSystem();
         this.startTrainSystem();
         
         // Handle window resize
@@ -679,10 +688,10 @@ class TerritoryGame {
         }
     }
     
-    buildStructure(x, y, buildingType) {
-        if (this.grid[y][x] !== 1) {
+    buildStructure(x, y, buildingType, ownerId = 1) {
+        if (this.grid[y][x] !== ownerId) {
             console.log('Cannot build: Not on player territory');
-            this.updateBuildingStatus('Cannot build: place on your territory', '#ff4444');
+            if (ownerId === 1) this.updateBuildingStatus('Cannot build: place on your territory', '#ff4444');
             return false; // Must be on own territory
         }
         
@@ -693,9 +702,10 @@ class TerritoryGame {
             return false;
         }
         
-        if (this.gold < building.cost) {
-            console.log(`Cannot build: Not enough gold (need ${building.cost}, have ${Math.floor(this.gold)})`);
-            this.updateBuildingStatus(`Not enough gold (${Math.floor(this.gold)}/${building.cost}g)`, '#ff4444');
+        const ownerGold = ownerId === 1 ? this.gold : this.botGold[ownerId - 2];
+        if (ownerGold < building.cost) {
+            console.log(`Cannot build: Not enough gold (need ${building.cost}, have ${Math.floor(ownerGold)})`);
+            if (ownerId === 1) this.updateBuildingStatus(`Not enough gold (${Math.floor(this.gold)}/${building.cost}g)`, '#ff4444');
             return false; // Not enough gold
         }
         
@@ -710,17 +720,18 @@ class TerritoryGame {
         if (buildingType === 'port') {
             if (!this.canBuildPort(x, y)) {
                 console.log('Cannot build port: Must be on coastline or river connected to ocean');
-                this.updateBuildingStatus('Port must be on coast / river-to-ocean', '#ff4444');
+                if (ownerId === 1) this.updateBuildingStatus('Port must be on map edge next to water', '#ff4444');
                 return false;
             }
         }
         
         // Build the structure
-        this.buildings.push({ x, y, type: buildingType, owner: 1 });
-        this.gold -= building.cost;
+        this.buildings.push({ x, y, type: buildingType, owner: ownerId });
+        if (ownerId === 1) this.gold -= building.cost;
+        else this.botGold[ownerId - 2] -= building.cost;
         
         if (buildingType === 'city') {
-            this.maxPopulation += building.populationBonus;
+            if (ownerId === 1) this.maxPopulation += building.populationBonus;
         } else if (buildingType === 'factory') {
             // When factory is built, create train line to nearest city/port
             this.createTrainLine(x, y);
@@ -873,22 +884,12 @@ class TerritoryGame {
     }
     
     canBuildPort(x, y) {
-        // Ports can be built on:
-        // 1. River tiles (that are connected to ocean) - rivers are buildable
-        // 2. Land tiles adjacent to water (coastline)
-        
-        // Check if it's a river tile
-        if (this.waterGrid[y][x] === -2) {
-            // Check if river connects to ocean
-            return this.isRiverConnectedToOcean(x, y);
-        }
-        
-        // Check if it's a land tile adjacent to water (coastline)
-        if (this.waterGrid[y][x] === 0) {
-            return this.isCoastline(x, y);
-        }
-        
-        return false;
+        // New rule: Ports can ONLY be built on the edge of the map on LAND,
+        // and must be adjacent (4-direction) to water (ocean or river).
+        if (this.waterGrid[y][x] !== 0) return false; // must be land
+        const isEdge = (x === 0 || y === 0 || x === this.gridSize - 1 || y === this.gridSize - 1);
+        if (!isEdge) return false;
+        return this.getWaterNeighbors(x, y).length > 0;
     }
     
     isCoastline(x, y) {
@@ -968,6 +969,24 @@ class TerritoryGame {
             
             this.gold += goldIncome / 10; // Update 10 times per second
             this.goldPerSecond = goldIncome;
+
+            // Bot gold generation
+            for (let i = 0; i < this.botColors.length; i++) {
+                const botId = i + 2;
+                let botIncome = this.botColors[i].owned * 0.01;
+
+                this.buildings.forEach(building => {
+                    if (this.grid[building.y][building.x] === botId) {
+                        const buildingData = this.buildingTypes[building.type];
+                        if (buildingData && buildingData.goldIncome) {
+                            botIncome += buildingData.goldIncome;
+                        }
+                    }
+                });
+
+                this.botGold[i] += botIncome / 10;
+                this.botGoldPerSecond[i] = botIncome;
+            }
             
             // Population growth (like OpenFront.io)
             if (this.population < this.maxPopulation) {
@@ -977,6 +996,110 @@ class TerritoryGame {
             
             this.updateUI();
         }, 100);
+    }
+
+    startTradeSystem() {
+        setInterval(() => {
+            const ports = this.buildings.filter(b => b.type === 'port' && this.grid[b.y]?.[b.x] > 0);
+            if (ports.length < 2) return;
+
+            for (let attempt = 0; attempt < 4; attempt++) {
+                const from = ports[Math.floor(Math.random() * ports.length)];
+                const to = ports[Math.floor(Math.random() * ports.length)];
+                if (!from || !to) continue;
+                if (from.x === to.x && from.y === to.y) continue;
+
+                const ownerId = this.grid[from.y][from.x];
+                const targetOwnerId = this.grid[to.y][to.x];
+                if (ownerId <= 0 || targetOwnerId <= 0) continue;
+
+                const path = this.findWaterPathBetweenPorts(from.x, from.y, to.x, to.y);
+                if (!path || path.length < 2) continue;
+
+                this.tradeBolts.push({
+                    ownerId,
+                    from: { x: from.x, y: from.y },
+                    to: { x: to.x, y: to.y },
+                    path,
+                    step: 0,
+                    progress: 0
+                });
+            }
+        }, 1200);
+    }
+
+    isWaterTile(x, y) {
+        const t = this.waterGrid?.[y]?.[x];
+        return t === -1 || t === -2;
+    }
+
+    getWaterNeighbors(x, y) {
+        const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+        const out = [];
+        for (const [dx, dy] of dirs) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= this.gridSize || ny >= this.gridSize) continue;
+            if (this.isWaterTile(nx, ny)) out.push([nx, ny]);
+        }
+        return out;
+    }
+
+    findWaterPathBetweenPorts(fromX, fromY, toX, toY) {
+        const starts = this.getWaterNeighbors(fromX, fromY);
+        const goals = new Set(this.getWaterNeighbors(toX, toY).map(([x, y]) => `${x},${y}`));
+        if (starts.length === 0 || goals.size === 0) return null;
+
+        const queue = [];
+        const prev = new Map();
+        const seen = new Set();
+
+        for (const [sx, sy] of starts) {
+            const k = `${sx},${sy}`;
+            queue.push([sx, sy]);
+            seen.add(k);
+            prev.set(k, null);
+        }
+
+        const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+        let foundKey = null;
+
+        while (queue.length) {
+            const [cx, cy] = queue.shift();
+            const ck = `${cx},${cy}`;
+            if (goals.has(ck)) {
+                foundKey = ck;
+                break;
+            }
+            for (const [dx, dy] of dirs) {
+                const nx = cx + dx;
+                const ny = cy + dy;
+                if (nx < 0 || ny < 0 || nx >= this.gridSize || ny >= this.gridSize) continue;
+                if (!this.isWaterTile(nx, ny)) continue;
+                const nk = `${nx},${ny}`;
+                if (seen.has(nk)) continue;
+                seen.add(nk);
+                prev.set(nk, ck);
+                queue.push([nx, ny]);
+            }
+        }
+
+        if (!foundKey) return null;
+
+        const path = [];
+        let cur = foundKey;
+        while (cur) {
+            const [x, y] = cur.split(',').map(Number);
+            path.push([x, y]);
+            cur = prev.get(cur);
+        }
+        path.reverse();
+        return path;
+    }
+
+    addGoldForOwner(ownerId, amount) {
+        if (ownerId === 1) this.gold += amount;
+        else if (ownerId >= 2 && ownerId - 2 < this.botGold.length) this.botGold[ownerId - 2] += amount;
     }
     
     isAdjacentToOwned(x, y, ownerId = 1) {
@@ -1296,10 +1419,50 @@ class TerritoryGame {
                     attacks++;
                 }
             }
+
+            // Build buildings too (simple economy + strategy).
+            this.botTryBuild(i);
         }
         
         this.updateUI();
         this.checkVictory();
+    }
+
+    botTryBuild(botIndex) {
+        const botId = botIndex + 2;
+
+        // Don’t build every tick (keeps bots from spamming and reduces CPU).
+        if (Math.random() > 0.25) return;
+
+        const budget = this.botGold?.[botIndex] || 0;
+        if (budget < 200) return;
+
+        const botPorts = this.buildings.filter(b => b.type === 'port' && this.grid[b.y]?.[b.x] === botId);
+        const botCities = this.buildings.filter(b => b.type === 'city' && this.grid[b.y]?.[b.x] === botId);
+
+        let choices = ['defense', 'city', 'factory'];
+        if (botPorts.length === 0) choices.unshift('port');
+        if (botCities.length === 0) choices.unshift('city');
+
+        choices = choices.filter(t => this.buildingTypes[t] && this.buildingTypes[t].cost <= budget);
+        if (choices.length === 0) return;
+
+        const type = choices[Math.floor(Math.random() * choices.length)];
+
+        // Pick a random owned tile without a building (and valid port rules if port).
+        const candidates = [];
+        for (let y = 0; y < this.gridSize; y++) {
+            for (let x = 0; x < this.gridSize; x++) {
+                if (this.grid[y][x] !== botId) continue;
+                if (this.getBuildingAt(x, y)) continue;
+                if (type === 'port' && !this.canBuildPort(x, y)) continue;
+                candidates.push([x, y]);
+            }
+        }
+        if (candidates.length === 0) return;
+
+        const [bx, by] = candidates[Math.floor(Math.random() * candidates.length)];
+        this.buildStructure(bx, by, type, botId);
     }
     
     getBotTerritory(botId) {
@@ -1484,6 +1647,27 @@ class TerritoryGame {
                 }
             }
         });
+
+        // Draw trade bolts on water paths
+        if (this.tradeBolts && this.tradeBolts.length) {
+            for (const bolt of this.tradeBolts) {
+                const a = bolt.path[Math.max(0, Math.min(bolt.step, bolt.path.length - 1))];
+                const b = bolt.path[Math.max(0, Math.min(bolt.step + 1, bolt.path.length - 1))];
+                const t = bolt.progress;
+                const wx = (a[0] + (b[0] - a[0]) * t) * this.tileSize + this.tileSize / 2;
+                const wy = (a[1] + (b[1] - a[1]) * t) * this.tileSize + this.tileSize / 2;
+
+                let color = '#ffff00';
+                if (bolt.ownerId >= 2) {
+                    const idx = bolt.ownerId - 2;
+                    color = this.botColors[idx]?.color || '#ffff00';
+                }
+                this.ctx.fillStyle = color;
+                this.ctx.beginPath();
+                this.ctx.arc(wx, wy, 2, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        }
         
         // Draw border
         this.ctx.strokeStyle = '#0f3460';
@@ -1743,6 +1927,9 @@ class TerritoryGame {
         this.clicks = 0;
         this.buildings = [];
         this.gold = 1000;
+        this.botGold = this.botColors.map(() => 1000);
+        this.botGoldPerSecond = this.botColors.map(() => 0);
+        this.tradeBolts = [];
         this.population = 100;
         this.maxPopulation = 1000;
         this.selectedBuilding = null;
@@ -1771,8 +1958,39 @@ class TerritoryGame {
     }
     
     gameLoop() {
+        this.updateTradeBolts();
         this.draw();
         requestAnimationFrame(() => this.gameLoop());
+    }
+
+    updateTradeBolts() {
+        if (!this.tradeBolts || this.tradeBolts.length === 0) return;
+
+        const speed = 0.15;
+        for (let i = this.tradeBolts.length - 1; i >= 0; i--) {
+            const bolt = this.tradeBolts[i];
+            if (!bolt.path || bolt.path.length < 2) {
+                this.tradeBolts.splice(i, 1);
+                continue;
+            }
+
+            bolt.progress += speed;
+            while (bolt.progress >= 1) {
+                bolt.progress -= 1;
+                bolt.step++;
+
+                if (bolt.step >= bolt.path.length - 1) {
+                    // Arrived: both sides get paid.
+                    const receiverOwnerId = this.grid[bolt.to.y]?.[bolt.to.x];
+                    this.addGoldForOwner(bolt.ownerId, this.tradeIncomePerTrip);
+                    if (receiverOwnerId && receiverOwnerId > 0) {
+                        this.addGoldForOwner(receiverOwnerId, this.tradeIncomePerTrip);
+                    }
+                    this.tradeBolts.splice(i, 1);
+                    break;
+                }
+            }
+        }
     }
 }
 
