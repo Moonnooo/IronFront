@@ -1,16 +1,65 @@
-MIT License
+IronFront Dual License
 
-Copyright (c) 2025
+Copyright (c) 2025 Moonnooo
+
+This software is offered under a dual-license model:
+
+1) Non-Commercial License (default for the public)
+2) Commercial License (available from the copyright holder)
+
+----------------------------------------------------------------------
+1) IRONFRONT NON-COMMERCIAL LICENSE (PUBLIC)
+----------------------------------------------------------------------
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+of this software and associated documentation files (the "Software"), to use,
+copy, and modify the Software, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Non-Commercial Use Only
+- You may not use the Software for any Commercial Purpose.
+- "Commercial Purpose" means any use that is primarily intended for or directed
+  toward commercial advantage or monetary compensation, including (without
+  limitation) selling, reselling, licensing, sublicensing, renting, leasing,
+  providing the Software as part of a paid product or service, bundling with
+  paid offerings, or distributing the Software in exchange for a fee.
+
+Content Creation (Videos / Streams / Social Media)
+- You may record, stream, and publish videos, livestreams, screenshots, and other
+  social media content featuring the Software, provided it is strictly
+  non-commercial.
+- You may not monetize such content (including ads, sponsorships, paid placements,
+  affiliate links, paid subscriptions, paid access, or any other form of
+  compensation).
+- You may not solicit or accept donations, tips, or contributions in connection
+  with such content (including Patreon, Ko-fi, “Buy Me a Coffee”, Twitch/YouTube
+  donations/super chats, stream tips, etc.).
+
+Redistribution
+- You may redistribute the Software (modified or unmodified) for non-commercial
+  purposes only, provided that you include this LICENSE file with any copies
+  or substantial portions of the Software.
+
+No Trademark Rights
+- This license does not grant any rights to use the names, logos, or trademarks
+  of Moonnooo or IronFront, except as necessary to comply with the attribution
+  and license notice requirements above.
+
+Termination
+- Any breach of this license automatically terminates your rights under it.
+
+----------------------------------------------------------------------
+2) COMMERCIAL LICENSE
+----------------------------------------------------------------------
+
+Commercial use is not permitted under the public Non-Commercial License above.
+If you want to use the Software for any Commercial Purpose, you must obtain a
+separate commercial license from the copyright holder.
+
+See COMMERCIAL.md for details.
+
+----------------------------------------------------------------------
+DISCLAIMER
+----------------------------------------------------------------------
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

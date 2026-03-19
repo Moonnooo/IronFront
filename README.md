@@ -71,4 +71,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (code of conduct, PR p
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Dual license:
+- **Non-commercial (public)** — see [LICENSE](LICENSE)
+- **Commercial** — available from the copyright holder, see [COMMERCIAL.md](COMMERCIAL.md)

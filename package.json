@@ -11,7 +11,7 @@
   },
   "keywords": ["virtual-world", "3d", "game"],
   "author": "",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "electron": "^27.0.0",
     "electron-builder": "^24.6.4"
