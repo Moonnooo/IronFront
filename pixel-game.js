@@ -58,6 +58,14 @@ class TerritoryGame {
         // Bot resources
         this.botGold = this.botColors.map(() => 1000);
         this.botGoldPerSecond = this.botColors.map(() => 0);
+        this.botPopulation = this.botColors.map(() => 100);
+        this.botMaxPopulation = this.botColors.map(() => 1000);
+
+        // Interest (aggression / momentum). Higher attack % -> higher interest and slower decay.
+        this.interest = 0;
+        this.botInterest = this.botColors.map(() => 0);
+        this.interestGainRate = 0.0006;
+        this.interestDecayRate = 0.12;
         
         // Buildings
         this.buildings = []; // Store building data: {x, y, type}
@@ -78,6 +86,7 @@ class TerritoryGame {
         this.trains = []; // Array of {lineIndex, position, progress: 0-1}
         this.trainIncomePerTrip = 5; // Gold earned per train trip
         this.trainSpeed = 0.005; // Progress per frame (0-1)
+        this.maxActiveTrains = 25;
         
         // Territory states: 0 = neutral, 1 = player owned, 2+ = bot owned (bot ID)
         this.initGrid();
@@ -806,14 +815,21 @@ class TerritoryGame {
             this.trainLines.push({
                 factoryX, factoryY,
                 targetX: target.x, targetY: target.y,
-                path: path
+                path: path,
+                railTypes: path.map(([x, y]) => {
+                    const w = this.waterGrid?.[y]?.[x];
+                    return (w === -1 || w === -2) ? 'bridge' : 'rail';
+                })
             });
             
             // Create a train on this line
-            this.trains.push({
-                lineIndex: this.trainLines.length - 1,
-                progress: 0
-            });
+            if (this.trains.length < this.maxActiveTrains) {
+                this.trains.push({
+                    lineIndex: this.trainLines.length - 1,
+                    progress: 0,
+                    index: 0
+                });
+            }
         }
     }
     
@@ -826,6 +842,13 @@ class TerritoryGame {
         const getKey = (x, y) => `${x},${y}`;
         const heuristic = (x1, y1, x2, y2) => Math.abs(x1 - x2) + Math.abs(y1 - y2);
         
+        const terrainCost = (x, y) => {
+            const w = this.waterGrid?.[y]?.[x];
+            // costs = grass: 1, hill: 3 (not used), water: 8
+            if (w === -1 || w === -2) return 8;
+            return 1;
+        };
+
         while (openSet.length > 0) {
             // Get node with lowest f score
             openSet.sort((a, b) => (a.g + a.h) - (b.g + b.h));
@@ -854,13 +877,17 @@ class TerritoryGame {
                 
                 if (nx < 0 || nx >= this.gridSize || ny < 0 || ny >= this.gridSize) continue;
                 
-                // Can only build train lines on owned territory
-                if (this.grid[ny][nx] !== 1) continue;
+                // Rails can cross water (bridges) but must stay within player-owned territory on land.
+                // Water crossings are allowed regardless of ownership (bridge segment).
+                const w = this.waterGrid?.[ny]?.[nx];
+                if (w !== -1 && w !== -2) {
+                    if (this.grid[ny][nx] !== 1) continue;
+                }
                 
                 const neighborKey = getKey(nx, ny);
                 if (closedSet.has(neighborKey)) continue;
                 
-                const g = current.g + 1;
+                const g = current.g + terrainCost(nx, ny);
                 const h = heuristic(nx, ny, endX, endY);
                 
                 // Check if already in open set
@@ -876,7 +903,7 @@ class TerritoryGame {
             }
             
             // Limit pathfinding to prevent infinite loops
-            if (closedSet.size > 200) break;
+            if (closedSet.size > 800) break;
         }
         
         return path; // Return empty or partial path if target not reached
@@ -895,12 +922,11 @@ class TerritoryGame {
             
             // Move train along the line
             train.progress += this.trainSpeed;
-            
-            // Check if train reached destination
+
+            // End behavior: stop at last building then despawn
             if (train.progress >= 1.0) {
-                // Train completed trip - generate income
                 this.gold += this.trainIncomePerTrip;
-                train.progress = 0; // Reset to start
+                this.trains.splice(i, 1);
             }
         }
     }
@@ -1050,9 +1076,93 @@ class TerritoryGame {
                 const growthRate = Math.min(this.ownedCount * 0.5, this.maxPopulation - this.population);
                 this.population += growthRate / 10;
             }
+
+            // Bot population growth
+            for (let i = 0; i < this.botColors.length; i++) {
+                const botOwned = this.botColors[i].owned;
+                if (this.botPopulation[i] < this.botMaxPopulation[i]) {
+                    const growthRate = Math.min(botOwned * 0.5, this.botMaxPopulation[i] - this.botPopulation[i]);
+                    this.botPopulation[i] += growthRate / 10;
+                }
+            }
+
+            // Interest update (player)
+            const ap = Math.max(1, this.attackPercentage);
+            this.interest += ap * this.interestGainRate;
+            this.interest -= this.interestDecayRate / ap;
+            this.interest = Math.max(0, Math.min(100, this.interest));
+
+            // Interest update (bots)
+            for (let i = 0; i < this.botInterest.length; i++) {
+                // Bots use a notional "attack %" based on how aggressive they are right now.
+                const botAp = 30 + (this.botInterest[i] * 0.7); // 30..100
+                const bap = Math.max(1, botAp);
+                this.botInterest[i] += bap * (this.interestGainRate * 0.6);
+                this.botInterest[i] -= (this.interestDecayRate * 0.6) / bap;
+                this.botInterest[i] = Math.max(0, Math.min(100, this.botInterest[i]));
+            }
             
             this.updateUI();
         }, 100);
+    }
+
+    getPopulation(ownerId) {
+        if (ownerId === 1) return this.population;
+        if (ownerId >= 2) return this.botPopulation[ownerId - 2] ?? 0;
+        return 0;
+    }
+
+    addPopulation(ownerId, delta) {
+        if (!Number.isFinite(delta) || delta === 0) return;
+        if (ownerId === 1) {
+            this.population = Math.max(0, Math.min(this.maxPopulation, this.population + delta));
+            return;
+        }
+        if (ownerId >= 2) {
+            const idx = ownerId - 2;
+            const maxPop = this.botMaxPopulation[idx] ?? 0;
+            this.botPopulation[idx] = Math.max(0, Math.min(maxPop, (this.botPopulation[idx] ?? 0) + delta));
+        }
+    }
+
+    consumeTroopsFromBorder(attackerId, targetX, targetY, troopsToConsume) {
+        // Consume troops from tiles adjacent to the target (4+diagonal) that are owned by attacker.
+        const dirs = [
+            [0, -1], [0, 1], [-1, 0], [1, 0],
+            [-1, -1], [-1, 1], [1, -1], [1, 1]
+        ];
+
+        const sources = [];
+        let available = 0;
+        for (const [dx, dy] of dirs) {
+            const sx = targetX + dx;
+            const sy = targetY + dy;
+            if (sx < 0 || sy < 0 || sx >= this.gridSize || sy >= this.gridSize) continue;
+            if (this.grid[sy][sx] !== attackerId) continue;
+            const t = Math.floor(this.troops[sy][sx] || 0);
+            if (t <= 0) continue;
+            sources.push([sx, sy, t]);
+            available += t;
+        }
+
+        const consume = Math.max(0, Math.min(Math.floor(troopsToConsume), available));
+        if (consume <= 0) return 0;
+
+        // Proportional drain across sources
+        let remaining = consume;
+        const total = available;
+        for (let i = 0; i < sources.length; i++) {
+            const [sx, sy, t] = sources[i];
+            const take = (i === sources.length - 1)
+                ? remaining
+                : Math.min(remaining, Math.floor((t / total) * consume));
+            if (take > 0) {
+                this.troops[sy][sx] = Math.max(0, (this.troops[sy][sx] || 0) - take);
+                remaining -= take;
+            }
+            if (remaining <= 0) break;
+        }
+        return consume - remaining;
     }
 
     startTradeSystem() {
@@ -1227,11 +1337,15 @@ class TerritoryGame {
         
         // Get attacker power
         let totalAttackerPower = 0;
+        let attackerTroopsSpent = 0;
         
         if (attackerId === 1 && attackTroops !== null) {
             // Player: call sites already apply attackPercentage and split per-tile.
             // Treat attackTroops as the actual power being sent to this tile.
             totalAttackerPower = Math.floor(attackTroops);
+            attackerTroopsSpent = this.consumeTroopsFromBorder(attackerId, x, y, totalAttackerPower);
+            // Troops lost in combat reduce population
+            this.addPopulation(attackerId, -attackerTroopsSpent);
         } else {
             // Bots or default: use all adjacent troops
             const directions = [
@@ -1248,6 +1362,12 @@ class TerritoryGame {
                     }
                 }
             });
+
+            // Bots "spend" a fraction of available border troops each attack.
+            const spend = Math.max(1, Math.floor(totalAttackerPower * 0.3));
+            attackerTroopsSpent = this.consumeTroopsFromBorder(attackerId, x, y, spend);
+            totalAttackerPower = attackerTroopsSpent;
+            this.addPopulation(attackerId, -attackerTroopsSpent);
         }
         
         // Check for defense bonus from buildings
@@ -1260,6 +1380,15 @@ class TerritoryGame {
         // Attacker needs at least defenseBonus * defender troops to win
         const requiredPower = (defenderTroops * defenseBonus);
         
+        // Defender casualties: even failed attacks reduce defender troops a bit.
+        if (defenderId > 0 && totalAttackerPower > 0) {
+            const defenderLoss = Math.min(defenderTroops, Math.floor(totalAttackerPower / defenseBonus));
+            if (defenderLoss > 0) {
+                this.troops[y][x] = Math.max(0, (this.troops[y][x] || 0) - defenderLoss);
+                this.addPopulation(defenderId, -defenderLoss);
+            }
+        }
+
         if (totalAttackerPower >= requiredPower || defenderId === 0) {
             // Attack successful
             const oldOwner = this.grid[y][x];
@@ -1283,10 +1412,17 @@ class TerritoryGame {
             }
             this.troops[y][x] = this.baseTroopsPerTile;
             
-            // Remove any buildings on captured tile
+            // Building capture rules:
+            // - Cities/Factories/Ports transfer ownership
+            // - Defense posts are destroyed when captured
             const buildingIndex = this.buildings.findIndex(b => b.x === x && b.y === y);
             if (buildingIndex !== -1) {
-                this.buildings.splice(buildingIndex, 1);
+                const b = this.buildings[buildingIndex];
+                if (b.type === 'defense') {
+                    this.buildings.splice(buildingIndex, 1);
+                } else {
+                    b.owner = attackerId;
+                }
             }
             
             if (attackerId === 1) {
@@ -1624,26 +1760,24 @@ class TerritoryGame {
             }
         }
         
-        // Draw train lines
+        // Draw train lines (bridges over water)
         this.trainLines.forEach(line => {
             if (line.path.length < 2) return;
             
-            this.ctx.strokeStyle = '#ffaa00';
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            
-            for (let i = 0; i < line.path.length; i++) {
-                const [x, y] = line.path[i];
-                const px = x * this.tileSize + this.tileSize / 2;
-                const py = y * this.tileSize + this.tileSize / 2;
-                
-                if (i === 0) {
-                    this.ctx.moveTo(px, py);
-                } else {
-                    this.ctx.lineTo(px, py);
-                }
+            for (let i = 1; i < line.path.length; i++) {
+                const [x1, y1] = line.path[i - 1];
+                const [x2, y2] = line.path[i];
+                const t1 = line.railTypes?.[i - 1] || 'rail';
+                const t2 = line.railTypes?.[i] || 'rail';
+                const isBridge = (t1 === 'bridge' || t2 === 'bridge');
+
+                this.ctx.strokeStyle = isBridge ? '#a855f7' : '#ffaa00';
+                this.ctx.lineWidth = isBridge ? 3 : 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x1 * this.tileSize + this.tileSize / 2, y1 * this.tileSize + this.tileSize / 2);
+                this.ctx.lineTo(x2 * this.tileSize + this.tileSize / 2, y2 * this.tileSize + this.tileSize / 2);
+                this.ctx.stroke();
             }
-            this.ctx.stroke();
         });
         
         // Draw trains
@@ -1668,14 +1802,16 @@ class TerritoryGame {
             this.ctx.fill();
         });
         
-        // Draw buildings
+        // Draw buildings (for all owners)
         this.buildings.forEach(building => {
-            if (this.grid[building.y][building.x] === 1) {
+            if (this.grid[building.y][building.x] > 0 && this.grid[building.y][building.x] === building.owner) {
                 const px = building.x * this.tileSize;
                 const py = building.y * this.tileSize;
                 
                 // Draw building icon
-                this.ctx.fillStyle = '#ffff00';
+                let color = '#ffff00';
+                if (building.owner >= 2) color = this.botColors[building.owner - 2]?.color || '#ffff00';
+                this.ctx.fillStyle = color;
                 if (building.type === 'city') {
                     // City - square icon
                     this.ctx.fillRect(px + 2, py + 2, this.tileSize - 4, this.tileSize - 4);
@@ -1986,6 +2122,10 @@ class TerritoryGame {
         this.gold = 1000;
         this.botGold = this.botColors.map(() => 1000);
         this.botGoldPerSecond = this.botColors.map(() => 0);
+        this.botPopulation = this.botColors.map(() => 100);
+        this.botMaxPopulation = this.botColors.map(() => 1000);
+        this.interest = 0;
+        this.botInterest = this.botColors.map(() => 0);
         this.tradeBolts = [];
         this.population = 100;
         this.maxPopulation = 1000;
